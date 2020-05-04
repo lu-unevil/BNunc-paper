@@ -13,139 +13,80 @@ library(hrbrthemes)
 
 
 theme_set(theme_ipsum_rc(grid_col = "grey95"))
-#####
-## Plotting a subjective probablity distribution
-# If we use sampling
-
-df.par <- data.frame(param = rlnorm(10000,2,0.5))
-
-df.par %>%
-  ggplot(aes(y = "",  x = param)) +
-  stat_intervalh()+
-  scale_color_brewer()+
-  labs(
-    x = "Parameter",
-    y = ""
-  )
-
-df.par %>%
-  ggplot(aes(y = "",  x = param)) +
-  stat_pointintervalh() + 
-  scale_color_brewer()+
-  labs(
-    x = "Parameter",
-    y = ""
-  )
-
-df.par %>%
-  ggplot(aes(y = "",  x = param)) +
-  stat_gradientintervalh() +
-  scale_color_brewer() +
-  labs(
-    x = "Parameter",
-    y = ""
-  )
-
-df.par %>%
-  ggplot(aes(y = "",  x = param)) +
-  geom_halfeyeh() +
-  coord_cartesian(expand = FALSE) +
-  scale_color_brewer() +
-  labs(
-    x = "Parameter",
-    y = "pdf for epistemic uncertainty"
-  )
 
 #####
 ## Plotting a subjective probablity distribution
 # If we have the exact parametric distribution
 df_param <- data.frame(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999)) %>%
-  mutate(vals = qlnorm(qs, 2, 0.5),
-         ds = dlnorm(vals, 2, 0.5))
+  mutate(vals_prior = qlnorm(qs,1, 1),
+         ds_prior = dlnorm(vals_prior, 1, 1),
+         vals_post = qlnorm(qs, 2, 0.5),
+         ds_post = dlnorm(vals_post, 2, 0.5))
 
-p_pdf <- df_param %>%
-  ggplot(aes(x=vals, y=ds)) +
+param_pdf <- df_param %>%
+  ggplot(aes(x=vals_prior, y=ds_prior)) +
   geom_line(size=1, alpha=0.2, color="grey50")+
+  geom_line(aes(x = vals_post, y = ds_post), size=1, alpha=0.2, color="darkred")+
   coord_cartesian(expand = FALSE) +
   labs(
+    title = "a)",
     x = "Parameter",
-    y = "pdf for epistemic uncertainty"
+    y = "pdf"
   )
-p_pdf
+param_pdf
 
-## generate data 
 
 #####
-# Plotting a two-dimensional probability distribution 
-#Generate data for plotting
+# Plot a predictive distribution
+niter = 10000
+sample_param_df <- data.frame(param = rlnorm(niter, 2, 0.5))
+
+df_predictive <- sample_param_df  %>% 
+  mutate(vals_predictive=rexp(niter, rate = param))
+
+predictive_pdf <- df_predictive %>%
+  ggplot(aes(x=vals_predictive)) +
+  geom_line(size=1, alpha=0.2, color="grey50")+  ## make a density plot of this using tidybayes
+  coord_cartesian(expand = FALSE) +
+  labs(
+    title = "b)",
+    x = "Variable",
+    y = "pdf"
+  )
+predictive_pdf
+
+# Plot a two-dimensional probability distribution 
 ndraws <- 20 ## number of spaghetti straws
-sample_param_df <- data.frame(lambda = rlnorm(ndraws,2,0.5))
-# 2 d plots
-df_ale <- sample_param_df  %>% 
-  mutate(q=map2(x=lambda, ~tibble(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999),
+df_sample_param_spaghetti <- data.frame(param=df_sample_param[sample.int(niter,ndraws),])
+#something is giving an error
+
+df_spaghetti <- df_sample_param_spaghetti  %>% 
+  mutate(q=map2(x=param, ~tibble(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999),
                                    vals=qexp(qs, rate = .x),
                                    ds=dexp(vals, rate = .x)))
   ) %>% unnest(q)
 
-#something is giving an error
 
-p_pdf <- df_ale %>%
+p_spaghetti <- df_spaghetti %>%
   mutate(grp = .iter) %>% 
   ggplot(aes(group=grp, x=vals, y=ds)) +
   geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
   coord_cartesian(expand = FALSE) +
   labs(
     title = "The spaghetti plot",
-    x = "Varible",
-    y = "pdf for aleatory uncertainty"
+    x = "Variable",
+    y = "pdf"
   )
-p_pdf
+p_spaghetti
 
 
+# Plot uncertainty in derived parameter (here the 90% percentile)
+df_derived <- df_sample_param  %>% 
+  mutate(vals_derived=qexp(0.9, rate = param))
 
-### didnt change below this point
-p_cdf <- df_ale %>% 
-  mutate(grp = .iter) %>% 
-  ggplot(aes(group=grp, x=vals, y=qs)) +
-  geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
-  stat_ecdf(data = df, aes(x = x, y = NULL, group=NULL), pad = TRUE) + ## adds the empirical cdf for data
-  coord_cartesian(expand = FALSE) +
-  labs(
-    title = "The spaghetti plot",
-    x = "X",
-    y = "cdf for aleatory uncertainty"
-  )
-p_cdf
+# Plot uncertainty in derived parameter (here the probability to exceed a treshold)
+threshold = 100
+df_derived <- df_sample_param  %>% 
+  mutate(vals_derived=1-pexp(threshold, rate = param))
+#... plot
 
-#####
-## Plot 2dim with animations
-p_pdf_anime <- df_ale %>% 
-  mutate(grp = .iter) %>% 
-  ggplot(aes(group=grp, x=vals, y=ds)) +
-  geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
-  geom_line(size=1, color="firebrick")+
-  coord_cartesian(expand = FALSE) +
-  transition_manual(.iter) +
-  labs(
-    title = "The spaghetti plot",
-    x = "X",
-    y = "pdf for aleatory uncertainty"
-  )
-
-p_pdf_anime
-anim_save(p_pdf_anime,file='pdfanime.gif')
-
-p_cdf_anime <- df_ale %>% 
-  mutate(grp = .iter) %>% 
-  ggplot(aes(group=grp, x=vals, y=qs)) +
-  geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
-  geom_line(size=1, color="firebrick")+
-  coord_cartesian(expand = FALSE) +
-  transition_manual(.iter) +
-  labs(
-    title = "The spaghetti plot",
-    x = "X",
-    y = "pdf for aleatory uncertainty"
-  )
-
-p_cdf_anime
