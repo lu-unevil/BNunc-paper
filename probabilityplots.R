@@ -1,14 +1,9 @@
 ## Code prepared by Ullrika and Dmytro
 
-library(dplyr)
-library(ggplot2)
-library(ggstance)
-library(purrr)
-library(tidyr)
+library(tidyverse)
 library(tidybayes)
-library(cowplot)
-library(RColorBrewer)
-library(gganimate)
+#install.packages("hrbrthemes")
+#hrbrthemes::import_roboto_condensed()
 library(hrbrthemes)
 
 
@@ -46,8 +41,8 @@ df_predictive <- sample_param_df  %>%
 
 predictive_pdf <- df_predictive %>%
   ggplot(aes(x=vals_predictive)) +
-  geom_line(size=1, alpha=0.2, color="grey50")+  ## make a density plot of this using tidybayes
-  coord_cartesian(expand = FALSE) +
+  geom_density(size=1, alpha=0.2, color="grey50")+  ## make a density plot of this using tidybayes
+ # coord_cartesian(expand = FALSE) +
   labs(
     title = "b)",
     x = "Variable",
@@ -57,36 +52,41 @@ predictive_pdf
 
 # Plot a two-dimensional probability distribution 
 ndraws <- 20 ## number of spaghetti straws
-df_sample_param_spaghetti <- data.frame(param=df_sample_param[sample.int(niter,ndraws),])
+df_sample_param_spaghetti <- tibble::tibble(param=sample_param_df[sample.int(niter,ndraws),])
 #something is giving an error
 
-df_spaghetti <- df_sample_param_spaghetti  %>% 
-  mutate(q=map2(x=param, ~tibble(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999),
+df_spaghetti <- df_sample_param_spaghetti %>% 
+  mutate(.iter=1:n(),
+    q=map(param, ~tibble(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999),
                                    vals=qexp(qs, rate = .x),
                                    ds=dexp(vals, rate = .x)))
   ) %>% unnest(q)
 
 
 p_spaghetti <- df_spaghetti %>%
-  mutate(grp = .iter) %>% 
+  mutate(grp=.iter) %>% 
   ggplot(aes(group=grp, x=vals, y=ds)) +
   geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
   coord_cartesian(expand = FALSE) +
   labs(
-    title = "The spaghetti plot",
+    title = "c)",
     x = "Variable",
     y = "pdf"
   )
 p_spaghetti
 
 
+threshold = 0.05
 # Plot uncertainty in derived parameter (here the 90% percentile)
-df_derived <- df_sample_param  %>% 
-  mutate(vals_derived=qexp(0.9, rate = param))
+sample_param_df  %>% 
+#  mutate(vals_derived=qexp(0.9, rate = param)) %>% 
+   mutate(vals_derived=1-pexp(threshold, rate = param)) %>% 
+  ggplot(aes(x=vals_derived))+
+  geom_density()+
+  labs(title="d)",
+       x="Derived parameter",
+       y="pdf")
 
-# Plot uncertainty in derived parameter (here the probability to exceed a treshold)
-threshold = 100
-df_derived <- df_sample_param  %>% 
-  mutate(vals_derived=1-pexp(threshold, rate = param))
-#... plot
+
+
 
