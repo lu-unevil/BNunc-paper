@@ -37,18 +37,19 @@ niter = 10000
 sample_param_df <- data.frame(param = rlnorm(niter, 2, 0.5))
 
 df_predictive <- sample_param_df  %>% 
-  mutate(vals_predictive=rexp(niter, rate = param))
+  mutate(vals_predictive=rexp(niter, rate = 1/param))
 
-predictive_pdf <- df_predictive %>%
-  ggplot(aes(x=vals_predictive)) +
-  geom_density(size=1, alpha=0.2, color="grey50")+  ## make a density plot of this using tidybayes
- # coord_cartesian(expand = FALSE) +
+p_predictive <- df_predictive %>%
+  ggplot(aes(x=vals_predictive,y = "")) +
+  geom_halfeyeh() +
+  #geom_density(size=1, alpha=0.2, color="grey50")+  ## make a density plot of this using tidybayes
+ coord_cartesian(expand = FALSE, xlim = c(0,100)) +
   labs(
     title = "b)",
     x = "Variable",
     y = "pdf"
-  )
-predictive_pdf
+  ) 
+p_predictive
 
 # Plot a two-dimensional probability distribution 
 ndraws <- 20 ## number of spaghetti straws
@@ -58,8 +59,8 @@ df_sample_param_spaghetti <- tibble::tibble(param=sample_param_df[sample.int(nit
 df_spaghetti <- df_sample_param_spaghetti %>% 
   mutate(.iter=1:n(),
     q=map(param, ~tibble(qs=c(0.001, seq(0.01, 0.99, by=0.01), 0.999),
-                                   vals=qexp(qs, rate = .x),
-                                   ds=dexp(vals, rate = .x)))
+                                   vals=qexp(qs, rate = 1/.x),
+                                   ds=dexp(vals, rate = 1/.x)))
   ) %>% unnest(q)
 
 
@@ -67,7 +68,7 @@ p_spaghetti <- df_spaghetti %>%
   mutate(grp=.iter) %>% 
   ggplot(aes(group=grp, x=vals, y=ds)) +
   geom_line(data=. %>% select(-.iter), size=1, alpha=0.2, color="grey50")+
-  coord_cartesian(expand = FALSE) +
+  xlim(0,100) +
   labs(
     title = "c)",
     x = "Variable",
@@ -76,17 +77,19 @@ p_spaghetti <- df_spaghetti %>%
 p_spaghetti
 
 
-threshold = 0.05
+threshold = 1
 # Plot uncertainty in derived parameter (here the 90% percentile)
-sample_param_df  %>% 
+p_derived <- sample_param_df  %>% 
 #  mutate(vals_derived=qexp(0.9, rate = param)) %>% 
-   mutate(vals_derived=1-pexp(threshold, rate = param)) %>% 
-  ggplot(aes(x=vals_derived))+
-  geom_density()+
-  labs(title="d)",
+   mutate(vals_derived=1-pexp(threshold, rate = 1/param)) %>% 
+  ggplot(aes(x=vals_derived,y=""))+
+  geom_halfeyeh() +
+  #geom_density()+
+  coord_cartesian(expand = FALSE, xlim=c(0,1)) +
+    labs(title="d)",
        x="Derived parameter",
        y="pdf")
 
-
+p_derived
 
 
