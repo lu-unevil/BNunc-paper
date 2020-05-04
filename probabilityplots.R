@@ -9,6 +9,9 @@ library(hrbrthemes)
 
 theme_set(theme_ipsum_rc(grid_col = "grey95"))
 
+if(!dir.exists("img"))
+  dir.create("img")
+
 #####
 ## Plotting a subjective probablity distribution
 # If we have the exact parametric distribution
@@ -29,7 +32,7 @@ param_pdf <- df_param %>%
     y = "pdf"
   )
 param_pdf
-
+ggsave("img/figure_a.png", param_pdf, width = 7, height = 5)
 
 #####
 # Plot a predictive distribution
@@ -50,9 +53,10 @@ p_predictive <- df_predictive %>%
     y = "pdf"
   ) 
 p_predictive
+ggsave("img/figure_b.png", p_predictive, width = 7, height = 5)
 
 # Plot a two-dimensional probability distribution 
-ndraws <- 20 ## number of spaghetti straws
+ndraws <- 50 ## number of spaghetti straws
 df_sample_param_spaghetti <- tibble::tibble(param=sample_param_df[sample.int(niter,ndraws),])
 #something is giving an error
 
@@ -75,7 +79,7 @@ p_spaghetti <- df_spaghetti %>%
     y = "pdf"
   )
 p_spaghetti
-
+ggsave("img/figure_c.png", p_spaghetti, width = 7, height = 5)
 
 threshold = 1
 # Plot uncertainty in derived parameter (here the 90% percentile)
@@ -91,5 +95,6 @@ p_derived <- sample_param_df  %>%
        y="pdf")
 
 p_derived
+ggsave("img/figure_d.png", p_derived, width = 7, height = 5)
 
 
